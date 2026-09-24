@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hack RUN — 10 Levels</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0a;
+      color: #00ff41;
+      font-family: 'Courier New', Courier, monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #header {
+      background: #111;
+      border-bottom: 2px solid #00ff41;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    #header .title { font-weight: bold; letter-spacing: 2px; }
+    #header .status { color: #888; }
+    #terminal {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #terminal .sys { color: #00ff41; }
+    #terminal .err { color: #ff3333; }
+    #terminal .info { color: #33ccff; }
+    #terminal .hint { color: #ffaa00; }
+    #terminal .success { color: #00ff99; font-weight: bold; }
+    #terminal .user { color: #ffffff; }
+    #input-line {
+      display: flex;
+      background: #111;
+      border-top: 1px solid #00ff41;
+      padding: 10px 16px;
+      font-size: 15px;
+    }
+    #prompt { color: #00ff41; margin-right: 8px; white-space: nowrap; }
+    #cmd {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #00ff41;
+      font-family: inherit;
+      font-size: inherit;
+      outline: none;
+      caret-color: #00ff41;
+    }
+    #help-bar {
+      background: #0d0d0d;
+      border-top: 1px solid #333;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: #666;
+    }
+    .blink { animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div class="title">HACK RUN // 10 LEVELS</div>
+    <div class="status" id="status">Level 1 / 10 | Skill: 0</div>
+  </div>
+  <div id="terminal"></div>
+  <div id="input-line">
+    <span id="prompt">root@run:~$</span>
+    <input type="text" id="cmd" autocomplete="off" autofocus spellcheck="false">
+  </div>
+  <div id="help-bar">
+    Commands: help | ls | cat &lt;file&gt; | cd &lt;dir&gt; | login &lt;user&gt; &lt;pass&gt; | hint | clear | status
+  </div>
+
+  <script>
+    // ============================================================
+    // GAME DATA — 10 levels, easy until 8, then harder
+    // ============================================================
+    const levels = [
+      // Level 1 — Super easy intro
+      {
+        name: "Guest Terminal",
+        prompt: "guest@run:~$",
+        welcome: "Welcome to RUN Corp guest terminal.\nType 'help' to see available commands.\nYour goal: find the next login credentials.",
+        files: {
+          "readme.txt": "Welcome new hire!\nThe guest password is: guest123\nUse: login guest guest123",
+          "notes.txt": "Remember to change default passwords."
+        },
+        dirs: {},
+        solution: { user: "guest", pass: "guest123" },
+        hint: "Look inside readme.txt"
+      },
+      // Level 2
+      {
+        name: "Employee Portal",
+        prompt: "employee@run:~$",
+        welcome: "You are now in the employee portal.\nFind the admin credentials hidden in the files.",
+        files: {
+          "todo.txt": "1. Update password policy\n2. Tell Bob his password is still 'bob2024'",
+          "welcome.txt": "Hello employees of RUN Corp."
+        },
+        dirs: {},
+        solution: { user: "bob", pass: "bob2024" },
+        hint: "Check the todo list carefully."
+      },
+      // Level 3
+      {
+        name: "HR Server",
+        prompt: "hr@run:~$",
+        welcome: "HR department server. Look for the manager account.",
+        files: {
+          "staff.csv": "name,role,temp_pass\nAlice,clerk,alice1\nCarol,manager,c@rol99\nDave,intern,dave",
+          "policy.txt": "Temporary passwords must be changed within 24h."
+        },
+        dirs: {},
+        solution: { user: "carol", pass: "c@rol99" },
+        hint: "The manager's name is in the staff list."
+      },
+      // Level 4
+      {
+        name: "Finance Share",
+        prompt: "finance@run:~$",
+        welcome: "Finance shared drive. Credentials are split across files.",
+        files: {
+          "memo.txt": "The accounting login starts with 'acc_'",
+          "secret.txt": "The rest of the password is: 2025!x",
+          "budget.xls": "Q1 numbers look fine."
+        },
+        dirs: {},
+        solution: { user: "acc_user", pass: "acc_2025!x" },
+        hint: "Combine the two pieces from memo and secret."
+      },
+      // Level 5
+      {
+        name: "Dev Workstation",
+        prompt: "dev@run:~$",
+        welcome: "Developer machine. Source code and configs may contain secrets.",
+        files: {
+          "config.json": '{\n  "db_user": "devadmin",\n  "db_pass": "s3cret_d3v",\n  "env": "staging"\n}',
+          "readme.md": "# Internal tools\nDo not commit passwords."
+        },
+        dirs: {},
+        solution: { user: "devadmin", pass: "s3cret_d3v" },
+        hint: "Open the JSON config file."
+      },
+      // Level 6
+      {
+        name: "Mail Server",
+        prompt: "mail@run:~$",
+        welcome: "Corporate mail server. Check the emails folder.",
+        files: {
+          "inbox.txt": "From: it@run.com\nSubject: Password reset\nUser 'sysop' temporary password is: Rst#8821"
+        },
+        dirs: {
+          "emails": {
+            "old_mail.txt": "Nothing useful here.",
+            "draft.txt": "Meeting notes..."
+          }
+        },
+        solution: { user: "sysop", pass: "Rst#8821" },
+        hint: "Look in the inbox."
+      },
+      // Level 7
+      {
+        name: "Backup Node",
+        prompt: "backup@run:~$",
+        welcome: "Backup system. The password is the product of two numbers found in the logs.",
+        files: {
+          "log1.txt": "Error count: 12",
+          "log2.txt": "Retry attempts: 7",
+          "readme.txt": "Password = error_count * retry_attempts\nUsername: backup_admin"
+        },
+        dirs: {},
+        solution: { user: "backup_admin", pass: "84" },
+        hint: "Multiply the two numbers mentioned in the logs."
+      },
+      // Level 8 — Difficulty spike
+      {
+        name: "Security Gateway",
+        prompt: "sec@run:~$",
+        welcome: "SECURITY GATEWAY — Access restricted.\nCredentials are encoded. Decode carefully.",
+        files: {
+          "encoded.txt": "Username (ROT13): flfbcc\nPassword hint: first 4 digits of pi + 'gate' + last 2 of year 2026",
+          "note.txt": "ROT13 shifts each letter by 13 places. A↔N, B↔O, etc."
+        },
+        dirs: {},
+        solution: { user: "sysopp", pass: "3141gate26" },
+        hint: "Decode the ROT13 username. Password = 3141 + gate + 26"
+      },
+      // Level 9 — Harder
+      {
+        name: "Core Database",
+        prompt: "db@run:~$",
+        welcome: "Core database node. Multiple files, one correct combination.",
+        files: {
+          "users.db": "id:1 user:root\nid:2 user:dba\nid:3 user:audit",
+          "pass_part1.txt": "The password starts with 'Db$'",
+          "pass_part2.txt": "Middle part is the year the company was founded: 2011",
+          "pass_part3.txt": "Ends with '!'",
+          "hint_note.txt": "Only the 'dba' account has the full password assembled."
+        },
+        dirs: {},
+        solution: { user: "dba", pass: "Db$2011!" },
+        hint: "Assemble the three password parts for the dba user."
+      },
+      // Level 10 — Final
+      {
+        name: "Master Control",
+        prompt: "root@run:~$",
+        welcome: "MASTER CONTROL — Final barrier.\nThe last password is a simple Caesar cipher (shift +3) of a famous phrase.",
+        files: {
+          "cipher.txt": "Encrypted: KDFN UXQ LV IXQ\n(Shift each letter back by 3)",
+          "final.txt": "Username is always 'master' on this system."
+        },
+        dirs: {},
+        solution: { user: "master", pass: "hack run is fun" },
+        hint: "Shift each letter in the cipher back by 3 positions. Spaces stay spaces."
+      }
+    ];
+
+    // ============================================================
+    // GAME STATE
+    // ============================================================
+    let currentLevel = 0;
+    let skill = 0;
+    let cwd = "";          // current directory (empty = root of level)
+    let history = [];
+    let histIdx = -1;
+
+    const term = document.getElementById("terminal");
+    const cmdInput = document.getElementById("cmd");
+    const promptEl = document.getElementById("prompt");
+    const statusEl = document.getElementById("status");
+
+    function print(text, cls = "sys") {
+      const line = document.createElement("div");
+      line.className = cls;
+      line.textContent = text;
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function printHTML(html) {
+      const line = document.createElement("div");
+      line.innerHTML = html;
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function clearTerm() {
+      term.innerHTML = "";
+    }
+
+    function updateStatus() {
+      statusEl.textContent = `Level ${currentLevel + 1} / 10 | Skill: ${skill}`;
+      promptEl.textContent = levels[currentLevel].prompt + (cwd ? "/" + cwd : "") + "$";
+    }
+
+    function startLevel() {
+      const L = levels[currentLevel];
+      cwd = "";
+      updateStatus();
+      print("────────────────────────────────────────", "info");
+      print(`>>> ENTERING: ${L.name} (Level ${currentLevel + 1})`, "success");
+      print(L.welcome, "info");
+      print("────────────────────────────────────────", "info");
+      print("Type 'help' for commands.\n");
+    }
+
+    function getCurrentFiles() {
+      const L = levels[currentLevel];
+      if (!cwd) return L.files;
+      return L.dirs[cwd] || {};
+    }
+
+    function getCurrentDirs() {
+      const L = levels[currentLevel];
+      if (cwd) return {}; // no nested dirs for simplicity
+      return L.dirs || {};
+    }
+
+    // ============================================================
+    // COMMANDS
+    // ============================================================
+    function handleCommand(raw) {
+      const input = raw.trim();
+      if (!input) return;
+
+      print(`${promptEl.textContent} ${input}`, "user");
+      history.push(input);
+      histIdx = history.length;
+
+      const parts = input.split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+      const args = parts.slice(1);
+
+      switch (cmd) {
+        case "help":
+          print("Available commands:", "info");
+          print("  help              — show this help");
+          print("  ls                — list files and directories");
+          print("  cat <file>        — display file contents");
+          print("  cd <dir>          — change directory (or cd .. to go up)");
+          print("  login <user> <pass> — attempt to login / advance level");
+          print("  hint              — get a hint for current level");
+          print("  status            — show current level & skill");
+          print("  clear             — clear the terminal");
+          print("  exit              — (does nothing, you're already in)");
+          break;
+
+        case "ls":
+          {
+            const files = getCurrentFiles();
+            const dirs = getCurrentDirs();
+            const names = [...Object.keys(dirs).map(d => d + "/"), ...Object.keys(files)];
+            if (names.length === 0) print("(empty)", "info");
+            else print(names.join("  "));
+          }
+          break;
+
+        case "cat":
+          if (args.length === 0) {
+            print("Usage: cat <filename>", "err");
+            break;
+          }
+          {
+            const files = getCurrentFiles();
+            const name = args[0];
+            if (files[name] !== undefined) {
+              print(files[name]);
+            } else {
+              print(`cat: ${name}: No such file`, "err");
+            }
+          }
+          break;
+
+        case "cd":
+          if (args.length === 0 || args[0] === "~" || args[0] === "/") {
+            cwd = "";
+            updateStatus();
+            break;
+          }
+          if (args[0] === "..") {
+            cwd = "";
+            updateStatus();
+            break;
+          }
+          {
+            const dirs = getCurrentDirs();
+            if (dirs[args[0]]) {
+              cwd = args[0];
+              updateStatus();
+            } else {
+              print(`cd: ${args[0]}: No such directory`, "err");
+            }
+          }
+          break;
+
+        case "login":
+          if (args.length < 2) {
+            print("Usage: login <username> <password>", "err");
+            break;
+          }
+          {
+            const L = levels[currentLevel];
+            const user = args[0];
+            const pass = args.slice(1).join(" "); // allow spaces in password
+            if (user === L.solution.user && pass === L.solution.pass) {
+              skill += 10 + currentLevel * 2;
+              print("\n✓ ACCESS GRANTED", "success");
+              print(`Level ${currentLevel + 1} completed! Skill +${10 + currentLevel * 2}`, "success");
+              currentLevel++;
+              if (currentLevel >= levels.length) {
+                print("\n════════════════════════════════════════", "success");
+                print("  CONGRATULATIONS — ALL 10 LEVELS CLEARED", "success");
+                print(`  Final Skill Rating: ${skill}`, "success");
+                print("  You have reached the heart of RUN Corp.", "success");
+                print("════════════════════════════════════════\n", "success");
+                print("Thanks for playing this mini Hack RUN!", "info");
+                cmdInput.disabled = true;
+                promptEl.textContent = "root@run:~$";
+              } else {
+                print("\nLoading next system...\n", "info");
+                setTimeout(startLevel, 600);
+              }
+            } else {
+              print("Access denied. Incorrect credentials.", "err");
+            }
+          }
+          break;
+
+        case "hint":
+          print("HINT: " + levels[currentLevel].hint, "hint");
+          break;
+
+        case "status":
+          print(`Current Level: ${currentLevel + 1} / 10`, "info");
+          print(`Location: ${levels[currentLevel].name}`, "info");
+          print(`Skill: ${skill}`, "info");
+          break;
+
+        case "clear":
+          clearTerm();
+          break;
+
+        case "exit":
+        case "logout":
+          print("There is no escape. Keep hacking.", "err");
+          break;
+
+        default:
+          print(`${cmd}: command not found. Type 'help' for available commands.`, "err");
+      }
+    }
+
+    // ============================================================
+    // INPUT HANDLING
+    // ============================================================
+    cmdInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        handleCommand(cmdInput.value);
+        cmdInput.value = "";
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (histIdx > 0) {
+          histIdx--;
+          cmdInput.value = history[histIdx] || "";
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (histIdx < history.length - 1) {
+          histIdx++;
+          cmdInput.value = history[histIdx] || "";
+        } else {
+          histIdx = history.length;
+          cmdInput.value = "";
+        }
+      }
+    });
+
+    // Focus input when clicking terminal
+    term.addEventListener("click", () => cmdInput.focus());
+    document.addEventListener("click", () => cmdInput.focus());
+
+    // Boot sequence
+    print("Initializing secure connection...", "info");
+    print("Bypassing firewall... OK", "info");
+    print("Establishing encrypted tunnel... OK", "info");
+    print("\n*** HACK RUN — Mini Edition (10 Levels) ***", "success");
+    print("Quite easygoing... until level 8.\n", "info");
+    setTimeout(startLevel, 400);
+  </script>
+</body>
+</html>
